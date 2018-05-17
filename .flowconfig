@@ -1,0 +1,15 @@
+[libs]
+flow-typed
+types
+
+[options]
+suppress_comment= \\(.\\|\n\\)*\\$FlowFixMe
+suppress_comment= \\(.\\|\n\\)*\\$FlowAllowFeatureDetection
+include_warnings=true
+emoji=true
+
+[ignore]
+node_modules/
+dist/
+.*static/*
+.*test/*
