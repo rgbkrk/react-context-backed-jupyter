@@ -29,11 +29,14 @@ export default class Host extends React.Component<HostProps, HostState> {
 
     const binderOpts = { repo: "nteract/vdom" };
 
-    this.lhs.allocate(binderOpts).then(host => {
-      if (host.type === UP) {
+    this.lhs
+      .allocate(binderOpts)
+      .then(host => {
         this.setState({ url: host.url, token: host.token });
-      }
-    });
+      })
+      .catch(e => {
+        console.error("seriously say what", e);
+      });
   }
 
   componentWillUnmount() {

@@ -2,9 +2,13 @@
 
 import { formBinderURL, binder } from "rx-binder";
 
-import { kernels } from "rx-jupyter";
+import { kernels, apiVersion } from "rx-jupyter";
 
-import { map, catchError, filter } from "rxjs/operators";
+import * as rxJupyter from "rx-jupyter";
+
+import * as operators from "rxjs/operators";
+
+import { tap, map, catchError, filter } from "rxjs/operators";
 import { of } from "rxjs/observable/of";
 
 export opaque type BinderKey = string;
@@ -24,11 +28,27 @@ type IsItUpHost = {
   type: "isitupdog"
 };
 
+type ServerConfig = {
+  url: string,
+  token: string,
+  crossDomain: true
+};
+
 type UpHost = {
   type: "updog",
-  url: string,
-  token: string
+  config: ServerConfig
 };
+
+function makeHost({ url, token }: { url: string, token: string }): UpHost {
+  return {
+    type: UP,
+    config: {
+      crossDomain: true,
+      url,
+      token
+    }
+  };
+}
 
 type HostRecord = UpHost | IsItUpHost;
 
@@ -45,6 +65,10 @@ export class LocalForage<K: string, V> {
 const prefix = "@BinderKey@";
 
 const mybinderURL = "https://mybinder.org";
+
+function sleep(duration: number) {
+  return new Promise(resolve => setTimeout(resolve, duration));
+}
 
 export class LocalHostStorage {
   localForage: LocalForage<BinderKey, HostRecord>;
@@ -87,49 +111,69 @@ export class LocalHostStorage {
     return `${prefix}${JSON.stringify({ repo, ref, binderURL })}`;
   }
 
-  checkUp(host: HostRecord): Promise<boolean> {
+  async checkUp(host: HostRecord): Promise<boolean> {
     if (host.type === GETTING_UP) {
-      return Promise.resolve(false);
+      return false;
     }
+
+    // Short circuit it for now
+    return true;
+
     return kernels
-      .list(host)
-      .pipe(map(() => true), catchError(() => of(false)))
+      .list(host.config)
+      .pipe(
+        map(() => true),
+        catchError(err => {
+          console.error("wtf", err);
+          return of(false);
+        })
+      )
       .toPromise();
   }
 
-  async allocate(binderOpts: BinderOptions): Promise<UpHost> {
+  async allocate(binderOpts: BinderOptions): Promise<ServerConfig> {
     let original = this.get(binderOpts);
 
-    if (!original) {
+    if (!original || !original.config) {
       original = { type: "isitupdog" };
       this.set(binderOpts, original);
+      // Fall through, don't return as we allocate below
     } else if (original.type === UP) {
       // TODO: Check if really up
       const isUp = await this.checkUp(original);
       if (isUp) {
-        return original;
+        return original.config;
       }
-      // Assume that we need to launch one
+      // If it wasn't up, launch a new one
     } else if (original.type === GETTING_UP) {
       // TODO: Do we wait on a prior to eventually come up or kick off a new one
       // Could do coordination here by recording timestamps in the GETTING_UP type
+
+      while (!original && original.type !== UP) {
+        await sleep(1000);
+        original = this.get(binderOpts);
+        if (original && original.type === UP) {
+          return original.config;
+        }
+      }
     }
+
+    console.log("getting new host");
 
     const host = await binder(binderOpts)
       .pipe(
         filter(msg => msg.phase === "ready"),
-        map(msg => ({
-          type: UP,
-          url: msg.url,
-          token: msg.token
-        }))
+        tap(x => {
+          console.log(x);
+        }),
+        map(msg => makeHost(msg))
       )
       .toPromise();
 
     this.set(binderOpts, host);
 
     console.log("allocated ", host);
-    return host;
+    return host.config;
   }
 
   get(opts: BinderOptions): ?HostRecord {
