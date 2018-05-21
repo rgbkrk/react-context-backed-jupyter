@@ -1,17 +1,17 @@
+// @flow
+
+import * as React from "react";
 import Link from "next/link";
 import Head from "../components/head";
 import Nav from "../components/nav";
 
+import Kernel, { Consumer as KernelConsumer } from "../components/kernel";
 import Host, { Consumer as HostConsumer } from "../components/host";
 
 import type { HostState } from "../components/host";
 
 const DebugView = (props: HostState) => {
-  if (!props) {
-    return "Loading server";
-  }
-
-  const url = `${props.url}nteract/edit/?token=${props.token}`;
+  const url = `${props.endpoint}nteract/edit/?token=${props.token}`;
 
   return (
     <>
@@ -53,9 +53,43 @@ const DebugView = (props: HostState) => {
 export default () => (
   <div>
     <Head title="Home" />
-
-    <Host>
-      <HostConsumer>{DebugView}</HostConsumer>
+    <Host repo="binder-examples/jupyter-stacks">
+      <HostConsumer>
+        {host => {
+          if (!host) {
+            return null;
+          }
+          return (
+            <Kernel host={host}>
+              <KernelConsumer>
+                {kernel => {
+                  return (
+                    <>
+                      <pre>{kernel.id}</pre>
+                      <p>Connections: {kernel.connections}</p>
+                      <p>Execution State: {kernel.execution_state}</p>
+                    </>
+                  );
+                }}
+              </KernelConsumer>
+            </Kernel>
+          );
+        }}
+      </HostConsumer>
+      <HostConsumer>
+        {host => {
+          if (!host) {
+            return <div>loading</div>;
+          }
+          return (
+            <DebugView
+              endpoint={host.endpoint}
+              token={host.token}
+              crossDomain={host.crossDomain}
+            />
+          );
+        }}
+      </HostConsumer>
     </Host>
   </div>
 );

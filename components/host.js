@@ -16,27 +16,40 @@ type HostProps = {
   binderURL?: string
 };
 
-export type HostState = {
-  url: string,
-  token: string
-};
+import type { ServerConfig } from "../libs/host-storage";
 
-export default class Host extends React.Component<HostProps, HostState> {
+export type HostState = ServerConfig;
+
+class Host extends React.Component<HostProps, HostState> {
   lhs: LocalHostStorage;
 
-  componentDidMount() {
-    this.lhs = new LocalHostStorage();
+  static defaultProps = {
+    repo: "nteract/vdom",
+    ref: "master",
+    binderURL: "https://mybinder.org"
+  };
 
-    const binderOpts = { repo: "nteract/vdom" };
+  allocate = () => {
+    const binderOpts = {
+      repo: this.props.repo,
+      ref: this.props.ref,
+      binderURL: this.props.binderURL
+    };
 
     this.lhs
       .allocate(binderOpts)
       .then(host => {
-        this.setState({ url: host.url, token: host.token });
+        this.setState(host);
       })
       .catch(e => {
         console.error("seriously say what", e);
       });
+  };
+
+  componentDidMount() {
+    this.lhs = new LocalHostStorage();
+
+    this.allocate();
   }
 
   componentWillUnmount() {
@@ -50,3 +63,5 @@ export default class Host extends React.Component<HostProps, HostState> {
     return <Provider value={this.state}>{this.props.children}</Provider>;
   }
 }
+
+export default Host;

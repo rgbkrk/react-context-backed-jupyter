@@ -28,8 +28,8 @@ type IsItUpHost = {
   type: "isitupdog"
 };
 
-type ServerConfig = {
-  url: string,
+export type ServerConfig = {
+  endpoint: string,
   token: string,
   crossDomain: true
 };
@@ -39,12 +39,18 @@ type UpHost = {
   config: ServerConfig
 };
 
-function makeHost({ url, token }: { url: string, token: string }): UpHost {
+function makeHost({
+  endpoint,
+  token
+}: {
+  endpoint: string,
+  token: string
+}): UpHost {
   return {
     type: UP,
     config: {
       crossDomain: true,
-      url,
+      endpoint,
       token
     }
   };
@@ -116,15 +122,15 @@ export class LocalHostStorage {
       return false;
     }
 
-    // Short circuit it for now
-    return true;
-
     return kernels
       .list(host.config)
       .pipe(
-        map(() => true),
+        map(xhr => {
+          console.log(xhr);
+          return true;
+        }),
         catchError(err => {
-          console.error("wtf", err);
+          console.error("error listing kernels on server", err);
           return of(false);
         })
       )
@@ -162,13 +168,23 @@ export class LocalHostStorage {
 
     const host = await binder(binderOpts)
       .pipe(
-        filter(msg => msg.phase === "ready"),
         tap(x => {
           console.log(x);
         }),
-        map(msg => makeHost(msg))
+        filter(msg => msg.phase === "ready"),
+        map(msg => makeHost({ endpoint: msg.url, token: msg.token }))
       )
       .toPromise();
+
+    if (
+      !host.config ||
+      !host.config.endpoint ||
+      !host.config.token ||
+      !host.config.crossDomain
+    ) {
+      console.error("UH OH", host);
+      throw new Error("Bad host created");
+    }
 
     this.set(binderOpts, host);
 
