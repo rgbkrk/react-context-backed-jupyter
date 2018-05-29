@@ -8,6 +8,8 @@ import Nav from "../components/nav";
 import Kernel, { Consumer as KernelConsumer } from "../components/kernel";
 import Host, { Consumer as HostConsumer } from "../components/host";
 
+import { RunThings } from "../components/kernel-runner-thingie";
+
 import type { HostState } from "../components/host";
 
 const DebugView = (props: HostState) => {
@@ -53,7 +55,10 @@ const DebugView = (props: HostState) => {
 export default () => (
   <div>
     <Head title="Home" />
-    <Host repo="binder-examples/jupyter-stacks">
+    <Host repo="nteract/vdom">
+      <HostConsumer>
+        {host => (host ? <h1>{host.endpoint}</h1> : null)}
+      </HostConsumer>
       <HostConsumer>
         {host => {
           if (!host) {
@@ -65,6 +70,9 @@ export default () => (
                 {kernel => {
                   return (
                     <>
+                      {kernel && kernel.channels ? (
+                        <RunThings kernel={kernel} />
+                      ) : null}
                       <pre>{kernel.id}</pre>
                       <p>Connections: {kernel.connections}</p>
                       <p>Execution State: {kernel.execution_state}</p>
