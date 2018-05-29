@@ -71,9 +71,11 @@ export default () => (
                   return (
                     <>
                       {kernel && kernel.channels ? (
-                        <RunThings kernel={kernel} />
+                        <>
+                          <RunThings kernel={kernel} />
+                        </>
                       ) : null}
-                      <pre>{kernel.id}</pre>
+                      <pre>Kernel ID: {kernel.id}</pre>
                       <p>Connections: {kernel.connections}</p>
                       <p>Execution State: {kernel.execution_state}</p>
                       <p>Last Activity: {kernel.last_activity.toISOString()}</p>

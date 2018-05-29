@@ -20,6 +20,7 @@ export class RunThings extends React.Component<*, *> {
   constructor(props: *) {
     super(props);
     this.state = {
+      source: "print('hey')",
       messageCollections: {}
     };
   }
@@ -69,6 +70,51 @@ export class RunThings extends React.Component<*, *> {
   }
 
   render() {
-    return <pre>{JSON.stringify(this.state.messageCollections, null, 2)}</pre>;
+    return (
+      <>
+        <textarea
+          style={{
+            width: "300px",
+            height: "300px"
+          }}
+          onChange={event => {
+            this.setState({ source: event.target.value });
+          }}
+        >
+          {this.state.source}
+        </textarea>
+        <hr />
+        <button
+          onClick={() => {
+            console.log(this.state.source);
+
+            this.props.kernel.channels.next(
+              messaging.executeRequest(this.state.source)
+            );
+          }}
+        >
+          Send message
+        </button>
+        {_.map(this.state.messageCollections, (collection, parent_id) => {
+          return _.map(collection, msg => {
+            console.log(msg);
+
+            switch (msg.msg_type) {
+              case "execute_result":
+              case "display_data":
+                return (
+                  <pre key={msg.header.msg_id}>
+                    {msg.content.data["text/plain"]}
+                  </pre>
+                );
+              case "stream":
+                return <pre key={msg.header.msg_id}>{msg.content.text}</pre>;
+              default:
+                return null;
+            }
+          });
+        })}
+      </>
+    );
   }
 }
