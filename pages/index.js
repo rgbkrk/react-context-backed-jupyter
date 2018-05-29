@@ -68,6 +68,9 @@ export default () => (
             <Kernel host={host}>
               <KernelConsumer>
                 {kernel => {
+                  if (!kernel || !kernel.last_activity) {
+                    return null;
+                  }
                   return (
                     <>
                       {kernel && kernel.channels ? (
